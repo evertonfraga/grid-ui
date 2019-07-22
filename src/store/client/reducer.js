@@ -1,5 +1,6 @@
 export const initialState = {
-  selected: 'geth'
+  selected: 'geth',
+  selectedTab: 0
   // Clients dynamically populate within this object, e.g.
   // geth: { config: {}, release: {}, ... },
   // parity: { config: {}, release: {}, ... },
@@ -22,6 +23,7 @@ export const initialClientState = {
   },
   binaryName: '',
   config: {},
+  flags: [],
   displayName: '',
   error: null,
   name: '',
@@ -44,15 +46,25 @@ export const initialClientState = {
 const client = (state = initialState, action) => {
   switch (action.type) {
     case 'CLIENT:INIT': {
-      const { clientName, clientData, config, type } = action.payload
+      const { clientName, clientData, config, type, flags } = action.payload
       return {
         ...state,
-        [clientName]: { ...initialClientState, ...clientData, config, type }
+        [clientName]: {
+          ...initialClientState,
+          ...clientData,
+          config,
+          type,
+          flags
+        }
       }
     }
     case 'CLIENT:SELECT': {
-      const { clientName } = action.payload
-      return { ...state, selected: clientName }
+      const { clientName, tab } = action.payload
+      return { ...state, selected: clientName, selectedTab: tab }
+    }
+    case 'CLIENT:SELECT_TAB': {
+      const { tab } = action.payload
+      return { ...state, selectedTab: tab }
     }
     case 'CLIENT:SET_RELEASE': {
       const { clientName, release } = action.payload
@@ -69,6 +81,17 @@ const client = (state = initialState, action) => {
           ...initialClientState,
           ...state[clientName],
           config
+        }
+      }
+    }
+    case 'CLIENT:SET_FLAGS': {
+      const { clientName, flags } = action.payload
+      return {
+        ...state,
+        [clientName]: {
+          ...initialClientState,
+          ...state[clientName],
+          flags
         }
       }
     }

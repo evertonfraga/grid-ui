@@ -10,7 +10,8 @@ import VersionList from './VersionList'
 import DynamicConfigForm from './DynamicConfigForm'
 import Terminal from '../Terminal'
 // import NodeInfo from '../NodeInfo'
-import { clearError } from '../../../store/client/actions'
+import PluginView from '../PluginView'
+import { clearError, selectTab } from '../../../store/client/actions'
 import Notification from '../../shared/Notification'
 import ErrorBoundary from '../../GenericErrorBoundary'
 import { getPluginSettingsConfig } from '../../../lib/utils'
@@ -38,11 +39,8 @@ class ClientConfig extends Component {
     isActiveClient: PropTypes.bool,
     handleReleaseSelect: PropTypes.func,
     handleClientConfigChanged: PropTypes.func,
-    clientError: PropTypes.string
-  }
-
-  state = {
-    activeTab: 0
+    clientError: PropTypes.string,
+    selectedTab: PropTypes.number
   }
 
   componentDidUpdate(prevProps) {
@@ -59,8 +57,9 @@ class ClientConfig extends Component {
     }
   }
 
-  handleTabChange = (event, activeTab) => {
-    this.setState({ activeTab })
+  handleTabChange = (event, tab) => {
+    const { dispatch } = this.props
+    dispatch(selectTab(tab))
   }
 
   handleClientConfigChanged = (key, value) => {
@@ -93,9 +92,9 @@ class ClientConfig extends Component {
       clientConfigChanged,
       clientStatus,
       isActiveClient,
-      handleReleaseSelect
+      handleReleaseSelect,
+      selectedTab
     } = this.props
-    const { activeTab } = this.state
     const { displayName: clientName } = client || {}
     const isRunning = ['STARTING', 'STARTED', 'CONNECTED'].includes(
       client.state
@@ -115,7 +114,7 @@ class ClientConfig extends Component {
         {this.renderErrors()}
         <StyledAppBar position="static">
           <Tabs
-            value={activeTab}
+            value={selectedTab}
             onChange={this.handleTabChange}
             textColor="primary"
             indicatorColor="primary"
@@ -123,10 +122,11 @@ class ClientConfig extends Component {
             <Tab label="Version" data-test-id="navbar-item-version" />
             <Tab label="Settings" data-test-id="navbar-item-settings" />
             <Tab label="Terminal" data-test-id="navbar-item-terminal" />
+            <Tab label="Details" data-test-id="navbar-item-terminal" />
           </Tabs>
         </StyledAppBar>
 
-        <TabContainer style={{ display: activeTab === 0 ? 'block' : 'none' }}>
+        <TabContainer style={{ display: selectedTab === 0 ? 'block' : 'none' }}>
           <VersionList
             client={client}
             handleReleaseSelect={handleReleaseSelect}
@@ -134,7 +134,7 @@ class ClientConfig extends Component {
         </TabContainer>
 
         {/* NOTE: MUI requires generating the ConfigForm from state each render */}
-        {activeTab === 1 && (
+        {selectedTab === 1 && (
           <TabContainer>
             <ErrorBoundary>
               <DynamicConfigForm
@@ -148,9 +148,15 @@ class ClientConfig extends Component {
           </TabContainer>
         )}
 
-        <TabContainer style={{ display: activeTab === 2 ? 'block' : 'none' }}>
+        <TabContainer style={{ display: selectedTab === 2 ? 'block' : 'none' }}>
           <Terminal client={client} />
         </TabContainer>
+
+        {selectedTab === 3 && (
+          <TabContainer>
+            <PluginView plugin={client} />
+          </TabContainer>
+        )}
       </StyledMain>
     )
   }
@@ -162,7 +168,8 @@ function mapStateToProps(state) {
   return {
     clientStatus: state.client[selectedClient].active.status,
     clientError: state.client[selectedClient].error,
-    isActiveClient: state.client[selectedClient].active.name !== 'STOPPED'
+    isActiveClient: state.client[selectedClient].active.name !== 'STOPPED',
+    selectedTab: state.client.selectedTab
   }
 }
 
@@ -178,7 +185,7 @@ const StyledAppBar = styled(AppBar)`
 `
 
 const StyledState = styled.div`
-  color: rgba(0, 0, 0, 0.25);
+  opacity: 0.25;
   font-size: 13px;
   font-weight: bold;
 `

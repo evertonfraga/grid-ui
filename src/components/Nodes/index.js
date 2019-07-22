@@ -9,6 +9,10 @@ import {
   setConfig,
   toggleClient
 } from '../../store/client/actions'
+import {
+  getPersistedClientSelection,
+  getPersistedTabSelection
+} from '../../lib/utils'
 
 import Grid from '../../API/Grid'
 
@@ -32,15 +36,19 @@ class NodesTab extends Component {
   }
 
   initClients = clients => {
-    const { dispatch } = this.props
+    const { clientState, dispatch } = this.props
 
-    // Sync clients with redux
+    // Sync clients with Redux
     clients.map(client => dispatch(initClient(client)))
 
-    // Set the selected client
+    // Set the selected client from config.json or a fallback method
     const selectedClient =
-      clients.find(client => client.order === 1) || clients[0]
-    this.handleSelectClient(selectedClient)
+      clients.find(client => client.name === getPersistedClientSelection()) ||
+      clients.find(client => client.name === clientState.selected) ||
+      clients.find(client => client.order === 1) ||
+      clients[0]
+    const selectedTab = getPersistedTabSelection()
+    this.handleSelectClient(selectedClient, selectedTab)
 
     // TODO: two sources of truth - local and redux state
     this.setState({ clients })
@@ -51,22 +59,25 @@ class NodesTab extends Component {
     return !selectedRelease
   }
 
-  handleSelectClient = client => {
+  handleSelectClient = (client, tab) => {
     const { dispatch } = this.props
 
     this.setState({ selectedClient: client }, () => {
-      dispatch(selectClient(client.name))
+      dispatch(selectClient(client.name, tab))
     })
   }
 
   handleClientConfigChanged = (key, value) => {
     const { clientState, dispatch } = this.props
+    const { clients } = this.state
+
+    const client = clients.filter(c => c.name === clientState.selected)[0]
 
     const { config } = clientState[clientState.selected]
     const newConfig = { ...config }
     newConfig[key] = value
 
-    dispatch(setConfig(clientState.selected, newConfig))
+    dispatch(setConfig(client, newConfig))
   }
 
   handleReleaseSelect = release => {

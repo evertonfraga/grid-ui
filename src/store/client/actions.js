@@ -1,5 +1,10 @@
 import ClientService from './clientService'
-import { getPluginSettingsConfig } from '../../lib/utils'
+import {
+  getPersistedClientSettings,
+  getDefaultSetting,
+  getPluginSettingsConfig,
+  getSettingsIds
+} from '../../lib/utils'
 import { generateFlags } from '../../lib/flags'
 
 export const onConnectionUpdate = (clientName, status) => {
@@ -8,19 +13,41 @@ export const onConnectionUpdate = (clientName, status) => {
 
 const buildClientDefaults = client => {
   const pluginDefaults = {}
+  const settingsIds = getSettingsIds(client)
+
+  // Handle rehydration: if config.json has settings already, use them.
+  const persistedSettings = getPersistedClientSettings(client.name)
+  if (settingsIds.length && persistedSettings) {
+    if (Object.keys(persistedSettings).length) {
+      settingsIds.forEach(id => {
+        pluginDefaults[id] =
+          persistedSettings[id] || getDefaultSetting(client, id)
+      })
+      return pluginDefaults
+    }
+  }
+
   const clientSettings = getPluginSettingsConfig(client)
   clientSettings.forEach(setting => {
     if ('default' in setting) {
       pluginDefaults[setting.id] = setting.default
     }
   })
+
   return pluginDefaults
+}
+
+export const getGeneratedFlags = (client, config) => {
+  const settings = getPluginSettingsConfig(client)
+  const flags = generateFlags(config, settings)
+  return flags
 }
 
 export const initClient = client => {
   return dispatch => {
-    const clientData = client.plugin.config
     const config = buildClientDefaults(client)
+    const clientData = client.plugin.config
+    const flags = getGeneratedFlags(client, config)
 
     dispatch({
       type: 'CLIENT:INIT',
@@ -28,11 +55,16 @@ export const initClient = client => {
         clientName: clientData.name,
         type: client.type,
         clientData,
-        config
+        config,
+        flags
       }
     })
 
+    console.log('Creating listeners for', client.name)
+    ClientService.createListeners(client, dispatch)
+
     if (client.isRunning) {
+      console.log('Resuming', client.name)
       ClientService.resume(client, dispatch)
     }
   }
@@ -92,8 +124,12 @@ export const clearError = clientName => {
   }
 }
 
-export const selectClient = clientName => {
-  return { type: 'CLIENT:SELECT', payload: { clientName } }
+export const selectClient = (clientName, tab = 0) => {
+  return { type: 'CLIENT:SELECT', payload: { clientName, tab } }
+}
+
+export const selectTab = tab => {
+  return { type: 'CLIENT:SELECT_TAB', payload: { tab } }
 }
 
 export const setRelease = (clientName, release) => {
@@ -103,16 +139,31 @@ export const setRelease = (clientName, release) => {
   }
 }
 
-export const setConfig = (clientName, config) => {
-  return { type: 'CLIENT:SET_CONFIG', payload: { clientName, config } }
+export const setFlags = (client, config) => {
+  const clientName = client.name
+  const flags = getGeneratedFlags(client, config)
+  return { type: 'CLIENT:SET_FLAGS', payload: { clientName, flags } }
+}
+
+export const setCustomFlags = (clientName, flags) => {
+  return { type: 'CLIENT:SET_FLAGS', payload: { clientName, flags } }
+}
+
+export const setConfig = (client, config) => {
+  return dispatch => {
+    const clientName = client.name
+    dispatch({
+      type: 'CLIENT:SET_CONFIG',
+      payload: { clientName, config }
+    })
+    dispatch(setFlags(client, config))
+  }
 }
 
 export const startClient = (client, release) => {
   return (dispatch, getState) => {
     try {
-      const { config } = getState().client[client.name]
-      const settings = getPluginSettingsConfig(client)
-      const flags = generateFlags(config, settings)
+      const { config, flags } = getState().client[client.name]
       ClientService.start(client, release, flags, config, dispatch)
       return dispatch({
         type: 'CLIENT:START',

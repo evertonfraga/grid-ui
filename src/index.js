@@ -2,15 +2,14 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import './index.css'
 import { Provider } from 'react-redux'
-// import { PersistGate } from 'redux-persist/integration/react'
 import App from './components/App'
 import Popup from './components/popups'
 import { Grid } from './API'
 import configureStore from './store'
 import Webview from './components/Webview'
-// import Spinner from './components/shared/Spinner'
+import Apps from './components/Apps'
 
-const { store /* , persistor */ } = configureStore()
+const store = configureStore()
 
 // see https://github.com/facebook/create-react-app/issues/1084#issuecomment-273272872
 // Copied from http:jquery-howto.blogspot.com/2009/09/get-url-parameters-values-with-jquery.html
@@ -36,6 +35,11 @@ const popupName = urlParams.name
 
 const args = (Grid && Grid.window && Grid.window.getArgs()) || {}
 
+let themeMode = 'dark'
+if (args.scope && args.scope.themeMode === 'light') {
+  themeMode = 'light'
+}
+
 if (args.isApp) {
   ReactDOM.render(
     <Provider store={store}>
@@ -43,6 +47,25 @@ if (args.isApp) {
     </Provider>,
     root
   )
+} else if (args.scope) {
+  if (args.scope.component === 'ui') {
+    ReactDOM.render(
+      <Provider store={store}>
+        <App themeMode={themeMode} />
+      </Provider>,
+      root
+    )
+  } else {
+    // args.scope.component === 'apps'
+    ReactDOM.render(
+      <Provider store={store}>
+        <div style={{ margin: '24px' }}>
+          <Apps />
+        </div>
+      </Provider>,
+      root
+    )
+  }
 } else {
   switch (urlParams.app) {
     case 'popup':
@@ -61,9 +84,7 @@ if (args.isApp) {
     default:
       ReactDOM.render(
         <Provider store={store}>
-          {/* <PersistGate loading={<Spinner />} persistor={persistor}> */}
-          <App />
-          {/* </PersistGate> */}
+          <App themeMode={themeMode} />
         </Provider>,
         root
       )

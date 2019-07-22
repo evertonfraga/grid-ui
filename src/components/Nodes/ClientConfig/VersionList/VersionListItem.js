@@ -7,8 +7,8 @@ import Typography from '@material-ui/core/Typography'
 import CloudDownloadIcon from '@material-ui/icons/CloudDownload'
 import CheckBoxIcon from '@material-ui/icons/CheckBox'
 import styled, { css } from 'styled-components'
-import Spinner from '../../shared/Spinner'
-import { without } from '../../../lib/utils'
+import Spinner from '../../../shared/Spinner'
+import { without } from '../../../../lib/utils'
 
 export default class VersionListItem extends Component {
   static propTypes = {
@@ -22,7 +22,8 @@ export default class VersionListItem extends Component {
 
   state = {
     isDownloading: false,
-    downloadProgress: 0
+    downloadProgress: 0,
+    isHovered: false
   }
 
   componentDidMount() {
@@ -90,20 +91,25 @@ export default class VersionListItem extends Component {
 
   renderIcon = release => {
     const { isSelectedRelease } = this.props
-    const { downloadProgress, isDownloading } = this.state
+    const { downloadProgress, isDownloading, isHovered } = this.state
     let icon = <BlankIconPlaceholder />
     if (isDownloading) {
       icon = (
         <Spinner variant="determinate" size={20} value={downloadProgress} />
       )
     } else if (release.remote) {
-      icon = <CloudDownloadIcon color="primary" />
+      icon = <CloudDownloadIcon color={isHovered ? 'primary' : 'inherit'} />
     } else if (isSelectedRelease(release)) {
       icon = <CheckBoxIcon color="primary" />
     } else if (!release.remote) {
-      icon = <HiddenCheckBoxIcon color="primary" />
+      icon = <HiddenCheckBoxIcon color={isHovered ? 'primary' : 'inherit'} />
     }
     return icon
+  }
+
+  toggleHover = () => {
+    const { isHovered } = this.state
+    this.setState({ isHovered: !isHovered })
   }
 
   render() {
@@ -126,9 +132,9 @@ export default class VersionListItem extends Component {
     return (
       <StyledListItem
         button
-        onClick={() => {
-          this.handleReleaseSelect(release)
-        }}
+        onMouseEnter={this.toggleHover}
+        onMouseLeave={this.toggleHover}
+        onClick={() => this.handleReleaseSelect(release)}
         selected={isSelectedRelease(release)}
         isDownloading={isDownloading}
         alt={release.name}
@@ -142,7 +148,10 @@ export default class VersionListItem extends Component {
           secondary={downloadProgress > 0 ? `${downloadProgress}%` : null}
         />
         <StyledListItemAction>
-          <Typography variant="button" color="primary">
+          <Typography
+            variant="button"
+            color={isSelectedRelease ? 'primary' : 'inherit'}
+          >
             {actionLabel}
           </Typography>
         </StyledListItemAction>
@@ -159,7 +168,7 @@ const ListItemTextVersion = styled(({ isLocalRelease, children, ...rest }) => (
   <ListItemText
     {...rest}
     primaryTypographyProps={{
-      style: { color: isLocalRelease ? 'black' : 'grey' }
+      style: { opacity: isLocalRelease ? '1' : '.4' }
     }}
   >
     {children}
